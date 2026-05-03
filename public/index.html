@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elysian Grand — Premium Banquets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300..600;1,9..40,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top-nav">
+    <a href="#home" class="brand">Elysian Grand</a>
+    <nav class="nav-links">
+      <button type="button" class="btn btn-text" data-open="home">Halls</button>
+      <span id="nav-auth">
+        <button type="button" class="btn btn-text" data-open="login">Guest sign in</button>
+        <button type="button" class="btn btn-text" data-open="register">Create account</button>
+      </span>
+      <button type="button" class="btn btn-text hidden" id="btn-logout">Sign out</button>
+      <span id="nav-user" class="hidden muted-small"></span>
+    </nav>
+    <nav class="nav-links">
+      <button type="button" class="btn btn-ghost" id="btn-admin-login-nav">Staff login</button>
+      <button type="button" class="btn btn-primary" id="btn-login-nav">Guest login</button>
+      <button type="button" class="btn btn-ghost" id="btn-register-nav">Register</button>
+      <button type="button" class="btn btn-ghost hidden" data-open="user" id="btn-my-dash">My events</button>
+      <button type="button" class="btn btn-ghost hidden" data-open="admin" id="btn-staff-dash">Operations</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- HOME -->
+    <section class="page active" id="page-home">
+      <div class="shell">
+        <div class="hero">
+          <div>
+            <h1>Gatherings bathed in light.</h1>
+            <p class="lead">
+              Curated banquet halls with daylight palettes, sculpted florals,
+              and transparent pricing — seasonal offers applied automatically when you choose your date.
+            </p>
+            <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+              <button type="button" class="btn btn-primary" data-open="register">Plan an event</button>
+              <button type="button" class="btn btn-ghost" data-open="login">Already registered</button>
+            </div>
+          </div>
+          <figure class="hero-card">
+            <img src="https://images.unsplash.com/photo-1519741497674-611481863552?w=1200&q=80" alt="Banquet hall interior" loading="lazy" />
+            <figcaption>Ivory palettes, sculpted light, understated luxury.</figcaption>
+          </figure>
+        </div>
+
+        <h2 class="section-title">Our halls</h2>
+        <p class="muted-small" style="max-width:60ch;margin-top:-.75rem;margin-bottom:.5rem">
+          Browse venues below. Signed-in guests unlock individual profiles, live pricing previews,
+          and automatic discounts tied to curated months &amp; marquee dates set by staff.
+        </p>
+        <div class="grid-halls" id="halls-grid"></div>
+      </div>
+    </section>
+
+    <!-- REGISTER -->
+    <section class="page" id="page-register">
+      <div class="shell">
+        <div class="panel">
+          <h2>Create your guest profile</h2>
+          <p class="sub">We verify email format, a strong password, and a 10‑digit Indian mobile.</p>
+          <div id="reg-msg" class="msg hidden"></div>
+          <form id="form-register">
+            <div class="field"><label for="reg-name">Full name</label><input id="reg-name" required autocomplete="name" /></div>
+            <div class="field"><label for="reg-email">Email</label><input id="reg-email" type="email" required autocomplete="email" /></div>
+            <div class="field"><label for="reg-phone">Phone</label><input id="reg-phone" inputmode="numeric" maxlength="12" placeholder="e.g. 9876543210" required autocomplete="tel" /></div>
+            <div class="field"><label for="reg-pass">Password</label><input id="reg-pass" type="password" required autocomplete="new-password" /></div>
+            <p class="muted-small">8+ characters with a letter, number, and symbol.</p>
+            <button type="submit" class="btn btn-primary" style="margin-top:.75rem;width:100%">Register & continue</button>
+          </form>
+          <p class="muted-small" style="margin-top:1rem">Have an account? <a href="#" data-open="login">Sign in</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOGIN USER -->
+    <section class="page" id="page-login">
+      <div class="shell">
+        <div class="panel">
+          <h2>Guest sign in</h2>
+          <p class="sub">Access your bookings and curated profile.</p>
+          <div id="login-msg" class="msg hidden"></div>
+          <form id="form-login">
+            <div class="field"><label for="login-email">Email</label><input id="login-email" type="email" required autocomplete="username" /></div>
+            <div class="field"><label for="login-pass">Password</label><input id="login-pass" type="password" required autocomplete="current-password" /></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Sign in</button>
+          </form>
+          <p class="muted-small" style="margin-top:1rem">New guest? <a href="#" data-open="register">Create account</a> · Staff? <a href="#" data-open="admin-login">Admin portal</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOGIN ADMIN -->
+    <section class="page" id="page-admin-login">
+      <div class="shell">
+        <div class="panel">
+          <h2>Staff console</h2>
+          <p class="sub">Authorised admins & co‑admins only.</p>
+          <div id="alogin-msg" class="msg hidden"></div>
+          <form id="form-admin-login">
+            <div class="field"><label for="alogin-email">Work email</label><input id="alogin-email" type="email" required autocomplete="username" placeholder="avinandanp138@gmail.com" /></div>
+            <div class="field"><label for="alogin-pass">Password</label><input id="alogin-pass" type="password" required autocomplete="current-password" placeholder="Provided credentials" /></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Enter dashboard</button>
+          </form>
+          <p class="muted-small" style="margin-top:1rem"><a href="#" data-open="login">Guest login instead</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- USER DASHBOARD -->
+    <section class="page" id="page-user">
+      <div class="shell">
+        <h2 class="section-title" style="margin-top:1rem"><span id="whoami"></span>'s gatherings</h2>
+        <p class="muted-small">Only your profile appears here — update contact details anytime.</p>
+
+        <div class="panel" style="max-width:none;margin-top:1.25rem">
+          <form id="form-profile" class="split split-2">
+            <div>
+              <h3 style="font-family:var(--font-display);margin:0 0 .75rem">Profile</h3>
+              <p class="muted-small">Email · <strong id="prof-email"></strong> (verified at signup)</p>
+              <div class="field"><label for="prof-name">Name</label><input id="prof-name" required /></div>
+              <div class="field"><label for="prof-phone">Phone</label><input id="prof-phone" inputmode="numeric" maxlength="12" /></div>
+              <button type="submit" class="btn btn-primary">Save profile</button>
+              <div id="prof-msg" class="msg hidden" style="margin-top:.75rem"></div>
+            </div>
+            <div>
+              <h3 style="font-family:var(--font-display);margin:0 0 .75rem">Booking defaults</h3>
+              <div class="field"><label for="book-guests">Expected guests</label>
+                <input id="book-guests" type="number" min="20" max="800" value="120" /></div>
+              <p class="muted-small">Used when reserving halls below.</p>
+            </div>
+          </form>
+        </div>
+
+        <h3 class="section-title">Your bookings</h3>
+        <div id="user-bookings"></div>
+
+        <h3 class="section-title">Reserve a hall</h3>
+        <p class="muted-small" style="max-width:60ch;margin-top:-1rem;margin-bottom:.5rem">
+          Pick any available date — we surface the deepest matching promotion (months or marquee dates configured by admins).
+        </p>
+        <div id="book-halls"></div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section class="page" id="page-admin">
+      <div class="shell">
+        <h2 class="section-title" style="margin-top:1rem">Operations desk</h2>
+        <p class="muted-small">Live roster, banquet ledger, promotions, co‑admins.</p>
+        <div id="admin-root" style="margin-top:1.25rem"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">Elysian Grand · Private banquet experiences</footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

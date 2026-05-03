@@ -1,0 +1,21 @@
+{
+  "name": "banquet-hall",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal banquet hall booking site with Express + SQLite",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "better-sqlite3": "^11.7.0"
+  }
+}
