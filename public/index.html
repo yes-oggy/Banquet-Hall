@@ -92,7 +92,7 @@
             <div class="field"><label for="login-pass">Password</label><input id="login-pass" type="password" required autocomplete="current-password" /></div>
             <button type="submit" class="btn btn-primary" style="width:100%">Sign in</button>
           </form>
-          <p class="muted-small" style="margin-top:1rem">New guest? <a href="#" data-open="register">Create account</a> · Staff? <a href="#" data-open="admin-login">Admin portal</a></p>
+          <p class="muted-small" style="margin-top:1rem">New guest? <a href="#" data-open="register">Create account</a> · Staff? <a href="#" data-open="admin-login">Admin portal</a> · <a href="#" data-open="forgot-password">Forgot password</a></p>
         </div>
       </div>
     </section>
@@ -109,7 +109,30 @@
             <div class="field"><label for="alogin-pass">Password</label><input id="alogin-pass" type="password" required autocomplete="current-password" placeholder="Provided credentials" /></div>
             <button type="submit" class="btn btn-primary" style="width:100%">Enter dashboard</button>
           </form>
-          <p class="muted-small" style="margin-top:1rem"><a href="#" data-open="login">Guest login instead</a></p>
+          <p class="muted-small" style="margin-top:1rem"><a href="#" data-open="login">Guest login instead</a> · <a href="#" data-open="forgot-password">Forgot password</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORGOT / RESET -->
+    <section class="page" id="page-forgot-password">
+      <div class="shell">
+        <div class="panel">
+          <h2>Reset your password</h2>
+          <p class="sub">Verify your registered email and phone, then set a new password.</p>
+          <div id="forgot-msg" class="msg hidden"></div>
+          <form id="form-forgot-password">
+            <div class="field"><label for="fp-email">Email</label><input id="fp-email" type="email" required /></div>
+            <div class="field"><label for="fp-phone">Phone</label><input id="fp-phone" inputmode="numeric" required /></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Generate reset token</button>
+          </form>
+          <hr style="border:none;border-top:1px solid var(--line);margin:1rem 0" />
+          <form id="form-reset-password">
+            <div class="field"><label for="fp-token">Reset token</label><input id="fp-token" required /></div>
+            <div class="field"><label for="fp-new-pass">New password</label><input id="fp-new-pass" type="password" required /></div>
+            <button type="submit" class="btn btn-ghost" style="width:100%">Set new password</button>
+          </form>
+          <p class="muted-small" style="margin-top:1rem">After reset, sign in from <a href="#" data-open="login">Guest login</a> or <a href="#" data-open="admin-login">Staff login</a>.</p>
         </div>
       </div>
     </section>
@@ -121,14 +144,24 @@
         <p class="muted-small">Only your profile appears here — update contact details anytime.</p>
 
         <div class="panel" style="max-width:none;margin-top:1.25rem">
-          <form id="form-profile" class="split split-2">
+          <div class="split split-2">
             <div>
               <h3 style="font-family:var(--font-display);margin:0 0 .75rem">Profile</h3>
-              <p class="muted-small">Email · <strong id="prof-email"></strong> (verified at signup)</p>
-              <div class="field"><label for="prof-name">Name</label><input id="prof-name" required /></div>
-              <div class="field"><label for="prof-phone">Phone</label><input id="prof-phone" inputmode="numeric" maxlength="12" /></div>
-              <button type="submit" class="btn btn-primary">Save profile</button>
-              <div id="prof-msg" class="msg hidden" style="margin-top:.75rem"></div>
+              <form id="form-profile">
+                <p class="muted-small">Email · <strong id="prof-email"></strong> (verified at signup)</p>
+                <div class="field"><label for="prof-name">Name</label><input id="prof-name" required /></div>
+                <div class="field"><label for="prof-phone">Phone</label><input id="prof-phone" inputmode="numeric" maxlength="12" /></div>
+                <button type="submit" class="btn btn-primary">Save profile</button>
+                <div id="prof-msg" class="msg hidden" style="margin-top:.75rem"></div>
+              </form>
+              <hr style="border:none;border-top:1px solid var(--line);margin:1rem 0" />
+              <h4 style="margin:.25rem 0 .5rem">Change password</h4>
+              <form id="form-change-password-user">
+                <div class="field"><label for="cp-current-user">Current password</label><input id="cp-current-user" type="password" required /></div>
+                <div class="field"><label for="cp-new-user">New password</label><input id="cp-new-user" type="password" required /></div>
+                <button type="submit" class="btn btn-ghost">Update password</button>
+                <div id="cp-msg-user" class="msg hidden" style="margin-top:.75rem"></div>
+              </form>
             </div>
             <div>
               <h3 style="font-family:var(--font-display);margin:0 0 .75rem">Booking defaults</h3>
@@ -136,7 +169,7 @@
                 <input id="book-guests" type="number" min="20" max="800" value="120" /></div>
               <p class="muted-small">Used when reserving halls below.</p>
             </div>
-          </form>
+          </div>
         </div>
 
         <h3 class="section-title">Your bookings</h3>

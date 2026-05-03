@@ -1,4 +1,5 @@
 const path = require("path");
+const crypto = require("crypto");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcryptjs");
@@ -59,6 +60,23 @@ function authAndTouch(req, res, next) {
     touchLastSeen(Number(req.user.sub));
     next();
   });
+}
+
+function issuePasswordResetToken(userId) {
+  const db = getDb();
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+    .replace("T", " ");
+
+  db.prepare(`UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ?`)
+    .run(userId);
+  db.prepare(
+    `INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, ?)`
+  ).run(userId, token, expiresAt);
+
+  return token;
 }
 
 app.post("/api/auth/register", (req, res) => {
@@ -147,6 +165,70 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/api/auth/forgot-password", (req, res) => {
+  const { email, phone } = req.body || {};
+  const e = normEmail(email);
+  const ph = String(phone || "").replace(/\D/g, "");
+  if (!isValidEmail(e) || !isValidPhoneIN(ph)) {
+    return res.status(400).json({ error: "Enter a valid email and phone." });
+  }
+
+  const db = getDb();
+  const user = db
+    .prepare("SELECT id FROM users WHERE email = ? AND phone = ?")
+    .get(e, ph);
+  if (!user) {
+    return res
+      .status(404)
+      .json({ error: "No user found with that email and phone." });
+  }
+
+  const token = issuePasswordResetToken(user.id);
+  res.json({
+    ok: true,
+    reset_token: token,
+    note: "Demo mode: token returned directly. In production, send this by email/SMS.",
+  });
+});
+
+app.post("/api/auth/reset-password", (req, res) => {
+  const { token, new_password } = req.body || {};
+  if (!token || !isStrongPassword(new_password)) {
+    return res.status(400).json({
+      error:
+        "Token and strong new password are required (8+ chars with letter, number, symbol).",
+    });
+  }
+
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT pr.id, pr.user_id
+       FROM password_resets pr
+       WHERE pr.token = ?
+         AND pr.used_at IS NULL
+         AND datetime(pr.expires_at) > datetime('now')`
+    )
+    .get(String(token));
+
+  if (!row) {
+    return res.status(400).json({ error: "Invalid or expired reset token." });
+  }
+
+  const hash = bcrypt.hashSync(String(new_password), 12);
+  const tx = db.transaction(() => {
+    db.prepare(`UPDATE users SET password_hash = ? WHERE id = ?`).run(
+      hash,
+      row.user_id
+    );
+    db.prepare(`UPDATE password_resets SET used_at = datetime('now') WHERE id = ?`).run(
+      row.id
+    );
+  });
+  tx();
+  res.json({ ok: true });
+});
+
 app.get("/api/me", authAndTouch, (req, res) => {
   const db = getDb();
   const user = db
@@ -196,6 +278,34 @@ app.patch("/api/me", authAndTouch, (req, res) => {
     )
     .get(Number(req.user.sub));
   res.json({ user });
+});
+
+app.post("/api/me/change-password", authAndTouch, (req, res) => {
+  const { current_password, new_password } = req.body || {};
+  if (!current_password || !isStrongPassword(new_password)) {
+    return res.status(400).json({
+      error:
+        "Current password and a strong new password are required (8+ chars with letter, number, symbol).",
+    });
+  }
+
+  const db = getDb();
+  const row = db
+    .prepare("SELECT id, password_hash FROM users WHERE id = ?")
+    .get(Number(req.user.sub));
+  if (!row) return res.status(404).json({ error: "User not found." });
+  if (!bcrypt.compareSync(String(current_password), row.password_hash)) {
+    return res.status(401).json({ error: "Current password is incorrect." });
+  }
+
+  const hash = bcrypt.hashSync(String(new_password), 12);
+  db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(
+    hash,
+    row.id
+  );
+  db.prepare(`UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ?`)
+    .run(row.id);
+  res.json({ ok: true });
 });
 
 app.get("/api/halls", (req, res) => {

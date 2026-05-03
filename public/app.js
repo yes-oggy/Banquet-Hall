@@ -284,6 +284,15 @@ async function renderAdmin() {
           <p class="muted-small">*booking count snapshot for this dashboard load.</p>
         </div>
         <div>
+          <div class="panel" style="max-width:none;margin-bottom:1rem">
+            <h3 style="font-family:var(--font-display);margin:0 0 .75rem;font-size:1.2rem">Change my password</h3>
+            <form id="form-change-password-staff">
+              <div class="field"><label>Current password</label><input id="cp-current-staff" type="password" required /></div>
+              <div class="field"><label>New password</label><input id="cp-new-staff" type="password" required /></div>
+              <button class="btn btn-ghost" type="submit">Update password</button>
+              <p id="cp-msg-staff" class="muted-small" style="margin-top:.75rem"></p>
+            </form>
+          </div>
           ${
             state.user?.role === "admin"
               ? `
@@ -412,6 +421,25 @@ async function renderAdmin() {
         await renderAdmin();
       } catch (e) {
         $("#ca-msg").textContent = e.message;
+      }
+    });
+
+    $("#form-change-password-staff")?.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      $("#cp-msg-staff").textContent = "";
+      try {
+        await api("/api/me/change-password", {
+          method: "POST",
+          body: {
+            current_password: $("#cp-current-staff").value,
+            new_password: $("#cp-new-staff").value,
+          },
+        });
+        $("#cp-msg-staff").textContent = "Password updated.";
+        $("#cp-current-staff").value = "";
+        $("#cp-new-staff").value = "";
+      } catch (e) {
+        $("#cp-msg-staff").textContent = e.message;
       }
     });
 
@@ -550,6 +578,69 @@ async function bootstrap() {
     } catch (err) {
       $("#prof-msg").textContent = err.message;
       $("#prof-msg").className = "msg msg-error";
+    }
+  });
+
+  $("#form-change-password-user")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("#cp-msg-user").className = "msg hidden";
+    try {
+      await api("/api/me/change-password", {
+        method: "POST",
+        body: {
+          current_password: $("#cp-current-user").value,
+          new_password: $("#cp-new-user").value,
+        },
+      });
+      $("#cp-msg-user").textContent = "Password changed successfully.";
+      $("#cp-msg-user").className = "msg msg-success";
+      $("#cp-current-user").value = "";
+      $("#cp-new-user").value = "";
+    } catch (err) {
+      $("#cp-msg-user").textContent = err.message;
+      $("#cp-msg-user").className = "msg msg-error";
+    }
+  });
+
+  $("#form-forgot-password")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("#forgot-msg").className = "msg hidden";
+    try {
+      const out = await api("/api/auth/forgot-password", {
+        method: "POST",
+        body: {
+          email: $("#fp-email").value,
+          phone: $("#fp-phone").value,
+        },
+      });
+      $("#fp-token").value = out.reset_token || "";
+      $("#forgot-msg").textContent =
+        "Reset token generated. Copy it now and submit new password below.";
+      $("#forgot-msg").className = "msg msg-success";
+    } catch (err) {
+      $("#forgot-msg").textContent = err.message;
+      $("#forgot-msg").className = "msg msg-error";
+    }
+  });
+
+  $("#form-reset-password")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $("#forgot-msg").className = "msg hidden";
+    try {
+      await api("/api/auth/reset-password", {
+        method: "POST",
+        body: {
+          token: $("#fp-token").value,
+          new_password: $("#fp-new-pass").value,
+        },
+      });
+      $("#forgot-msg").textContent =
+        "Password reset done. You can sign in with your new password.";
+      $("#forgot-msg").className = "msg msg-success";
+      $("#fp-new-pass").value = "";
+    } catch (err) {
+      $("#forgot-msg").textContent = err.message;
+      $("#forgot-msg").className = "msg msg-error";
     }
   });
 
