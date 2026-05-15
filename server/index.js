@@ -48,6 +48,17 @@ function isStrongPassword(p) {
   return true;
 }
 
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+}
+
+function isFutureOrToday(isoDate) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(isoDate) && isoDate >= todayISO();
+}
+
 function touchLastSeen(userId) {
   const db = getDb();
   db.prepare(
@@ -308,6 +319,51 @@ app.post("/api/me/change-password", authAndTouch, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/promotions", (req, res) => {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT label, percent, rule_type, rule_value
+       FROM discounts WHERE active = 1 ORDER BY percent DESC`
+    )
+    .all();
+  const promos = rows.map((r) => {
+    let summary = "";
+    try {
+      const v = JSON.parse(r.rule_value);
+      if (r.rule_type === "month_range") {
+        const months = [
+          "",
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May",
+          "Jun",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec",
+        ];
+        summary = `${months[v.startMonth]}–${months[v.endMonth]}`;
+      } else if (Array.isArray(v.dates)) {
+        summary = v.dates.slice(0, 3).join(", ") + (v.dates.length > 3 ? "…" : "");
+      }
+    } catch {
+      summary = "";
+    }
+    return {
+      label: r.label,
+      percent: r.percent,
+      rule_type: r.rule_type,
+      summary,
+    };
+  });
+  res.json({ promotions: promos });
+});
+
 app.get("/api/halls", (req, res) => {
   const db = getDb();
   const rows = db
@@ -380,6 +436,9 @@ app.post("/api/my/bookings", authAndTouch, (req, res) => {
   if (!hid || !/^\d{4}-\d{2}-\d{2}$/.test(ed)) {
     return res.status(400).json({ error: "Hall and valid event date required." });
   }
+  if (!isFutureOrToday(ed)) {
+    return res.status(400).json({ error: "Event date must be today or in the future." });
+  }
 
   const db = getDb();
   const hall = db.prepare(`SELECT * FROM halls WHERE id = ?`).get(hid);
@@ -427,6 +486,26 @@ app.post("/api/my/bookings", authAndTouch, (req, res) => {
 });
 
 /* ---------- Admin ---------- */
+
+app.delete("/api/my/bookings/:id", authAndTouch, (req, res) => {
+  if (req.user.role !== "user") {
+    return res.status(403).json({ error: "Only guests can cancel their bookings." });
+  }
+  const id = Number(req.params.id);
+  const db = getDb();
+  const row = db
+    .prepare(`SELECT id, user_id, event_date FROM bookings WHERE id = ?`)
+    .get(id);
+  if (!row) return res.status(404).json({ error: "Booking not found." });
+  if (row.user_id !== Number(req.user.sub)) {
+    return res.status(403).json({ error: "This booking is not yours." });
+  }
+  if (row.event_date < todayISO()) {
+    return res.status(400).json({ error: "Past events cannot be cancelled online." });
+  }
+  db.prepare(`DELETE FROM bookings WHERE id = ?`).run(id);
+  res.json({ ok: true });
+});
 
 app.get(
   "/api/admin/overview",

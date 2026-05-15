@@ -11,23 +11,25 @@
 <body>
   <header class="top-nav">
     <a href="#home" class="brand">Elysian Grand</a>
-    <nav class="nav-links">
+    <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <nav class="nav-links" id="nav-menu">
       <button type="button" class="btn btn-text" data-open="home">Halls</button>
       <span id="nav-auth">
-        <button type="button" class="btn btn-text" data-open="login">Guest sign in</button>
-        <button type="button" class="btn btn-text" data-open="register">Create account</button>
+        <button type="button" class="btn btn-text" data-open="login">Sign in</button>
+        <button type="button" class="btn btn-text" data-open="register">Register</button>
       </span>
-      <button type="button" class="btn btn-text hidden" id="btn-logout">Sign out</button>
-      <span id="nav-user" class="hidden muted-small"></span>
-    </nav>
-    <nav class="nav-links">
-      <button type="button" class="btn btn-ghost" id="btn-admin-login-nav">Staff login</button>
-      <button type="button" class="btn btn-primary" id="btn-login-nav">Guest login</button>
-      <button type="button" class="btn btn-ghost" id="btn-register-nav">Register</button>
+      <span id="nav-user" class="nav-user-label hidden muted-small"></span>
       <button type="button" class="btn btn-ghost hidden" data-open="user" id="btn-my-dash">My events</button>
       <button type="button" class="btn btn-ghost hidden" data-open="admin" id="btn-staff-dash">Operations</button>
+      <button type="button" class="btn btn-ghost" id="btn-admin-login-nav">Staff</button>
+      <button type="button" class="btn btn-primary" id="btn-login-nav">Guest login</button>
+      <button type="button" class="btn btn-ghost" id="btn-register-nav">Register</button>
+      <button type="button" class="btn btn-text hidden" id="btn-logout">Sign out</button>
     </nav>
   </header>
+  <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
   <main>
     <!-- HOME -->
@@ -56,6 +58,7 @@
           Browse venues below. Signed-in guests unlock individual profiles, live pricing previews,
           and automatic discounts tied to curated months &amp; marquee dates set by staff.
         </p>
+        <div id="promos-strip" class="promos-strip hidden" aria-label="Current offers"></div>
         <div class="grid-halls" id="halls-grid"></div>
       </div>
     </section>
@@ -105,8 +108,8 @@
           <p class="sub">Authorised admins & co‑admins only.</p>
           <div id="alogin-msg" class="msg hidden"></div>
           <form id="form-admin-login">
-            <div class="field"><label for="alogin-email">Work email</label><input id="alogin-email" type="email" required autocomplete="username" placeholder="avinandanp138@gmail.com" /></div>
-            <div class="field"><label for="alogin-pass">Password</label><input id="alogin-pass" type="password" required autocomplete="current-password" placeholder="Provided credentials" /></div>
+            <div class="field"><label for="alogin-email">Work email</label><input id="alogin-email" type="email" required autocomplete="username"  /></div>
+            <div class="field"><label for="alogin-pass">Password</label><input id="alogin-pass" type="password" required autocomplete="current-password"  /></div>
             <button type="submit" class="btn btn-primary" style="width:100%">Enter dashboard</button>
           </form>
           <p class="muted-small" style="margin-top:1rem"><a href="#" data-open="login">Guest login instead</a> · <a href="#" data-open="forgot-password">Forgot password</a></p>

@@ -1,6 +1,26 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+function toast(message, type = "success") {
+  const root = $("#toast-root");
+  if (!root) return;
+  const el = document.createElement("div");
+  el.className = `toast toast-${type === "error" ? "error" : "success"}`;
+  el.textContent = message;
+  root.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transition = "opacity 0.2s";
+    setTimeout(() => el.remove(), 220);
+  }, 3800);
+}
+
+function closeMobileNav() {
+  $("#nav-menu")?.classList.remove("open");
+  const t = $("#nav-toggle");
+  if (t) t.setAttribute("aria-expanded", "false");
+}
+
 async function api(path, opts = {}) {
   const headers = { ...opts.headers };
   if (opts.body && typeof opts.body === "object" && !(opts.body instanceof FormData))
@@ -38,6 +58,7 @@ function showPage(id) {
 }
 
 function navigate(id) {
+  closeMobileNav();
   location.hash = id;
 }
 
@@ -46,9 +67,14 @@ let state = {
 };
 
 async function refreshMe() {
+  const prevId = state.user?.id;
+  const prevRole = state.user?.role;
   try {
     const { user } = await api("/api/me");
     state.user = user;
+    if (prevId !== user.id || prevRole !== user.role) {
+      delete $("#halls-grid")?.dataset.loaded;
+    }
     $("#nav-auth")?.classList.add("hidden");
     $("#nav-user")?.classList.remove("hidden");
     $("#nav-user").textContent =
@@ -67,6 +93,7 @@ async function refreshMe() {
     $("#btn-admin-login-nav")?.classList.toggle("hidden", !!user);
     return user;
   } catch {
+    if (state.user) delete $("#halls-grid")?.dataset.loaded;
     state.user = null;
     $("#nav-auth")?.classList.remove("hidden");
     $("#nav-user")?.classList.add("hidden");
@@ -114,25 +141,65 @@ async function loadUserPage() {
   await renderUserDashboard();
 }
 
+async function renderPromos() {
+  const strip = $("#promos-strip");
+  if (!strip) return;
+  try {
+    const { promotions } = await api("/api/promotions");
+    if (!promotions.length) {
+      strip.classList.add("hidden");
+      return;
+    }
+    strip.classList.remove("hidden");
+    strip.innerHTML =
+      `<span class="muted-small" style="width:100%;margin-bottom:.15rem">Active offers</span>` +
+      promotions
+        .map(
+          (p) =>
+            `<span class="promo-chip"><strong>${p.percent}%</strong> ${escapeHtml(p.label)}${
+              p.summary ? ` <span class="muted-small">· ${escapeHtml(p.summary)}</span>` : ""
+            }</span>`
+        )
+        .join("");
+  } catch {
+    strip.classList.add("hidden");
+  }
+}
+
 async function renderHome() {
+  await renderPromos();
   const wrap = $("#halls-grid");
   if (!wrap.dataset.loaded) {
     wrap.innerHTML = `<p class="muted-small">Loading venues…</p>`;
     const { halls } = await api("/api/halls");
     wrap.dataset.loaded = "1";
     wrap.innerHTML = "";
+    const signedIn = state.user?.role === "user";
     halls.forEach((hall) => {
       const div = document.createElement("article");
       div.className = "card-hall";
       div.innerHTML = `
-        <img src="${escapeAttr(hall.image_url)}" alt="" loading="lazy" />
+        <img src="${escapeAttr(hall.image_url)}" alt="${escapeAttr(hall.name)}" loading="lazy" />
         <div class="body">
           <h3>${escapeHtml(hall.name)}</h3>
           <p class="muted">${escapeHtml(hall.description)}</p>
           <p class="muted-small">Up to ${hall.capacity} guests</p>
           <p class="price">From ₹${hall.base_price_per_day.toLocaleString("en-IN")} / day</p>
+          <div class="card-actions">
+            ${
+              signedIn
+                ? `<button type="button" class="btn btn-primary btn-sm" data-open="user">Book this hall</button>`
+                : `<button type="button" class="btn btn-ghost btn-sm" data-open="register">Sign up to book</button>`
+            }
+          </div>
         </div>`;
       wrap.appendChild(div);
+      $$("[data-open]", div).forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          navigate(el.dataset.open);
+        });
+      });
     });
   }
 }
@@ -148,24 +215,45 @@ async function renderUserDashboard() {
       list.innerHTML = `
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Date</th><th>Hall</th><th>Guests</th><th>Discount</th><th>Total</th></tr></thead>
+            <thead><tr><th>Date</th><th>Hall</th><th>Guests</th><th>Discount</th><th>Total</th><th></th></tr></thead>
             <tbody>
               ${bookings
-                .map(
-                  (b) => `
-                <tr>
+                .map((b) => {
+                  const today = new Date();
+                  const min = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+                  const canCancel = b.event_date >= min;
+                  return `
+                <tr data-booking-id="${b.id}">
                   <td>${escapeHtml(b.event_date)}</td>
                   <td>${escapeHtml(b.hall_name)}</td>
                   <td>${b.guest_count}</td>
                   <td>${b.discount_pct ? `${b.discount_pct}% (${escapeHtml(b.discount_label || "")})` : "—"}</td>
                   <td>₹${Number(b.final_price).toLocaleString("en-IN")}</td>
-                </tr>`
-                )
+                  <td>${
+                    canCancel
+                      ? `<button type="button" class="btn btn-ghost btn-sm btn-cancel-booking">Cancel</button>`
+                      : ""
+                  }</td>
+                </tr>`;
+                })
                 .join("")}
             </tbody>
           </table>
         </div>`;
     }
+    list.querySelectorAll(".btn-cancel-booking").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = Number(btn.closest("tr")?.dataset.bookingId);
+        if (!id || !confirm("Cancel this booking? The date will become available again.")) return;
+        try {
+          await api(`/api/my/bookings/${id}`, { method: "DELETE" });
+          toast("Booking cancelled.");
+          await renderUserDashboard();
+        } catch (e) {
+          toast(e.message, "error");
+        }
+      });
+    });
   } catch (e) {
     list.innerHTML = `<p class="msg msg-error">${escapeHtml(e.message)}</p>`;
   }
@@ -225,7 +313,7 @@ async function renderUserDashboard() {
         const d = dateInp.value;
         const guests = Number($("#book-guests")?.value) || 120;
         if (!d) {
-          alert("Pick an event date first.");
+          toast("Pick an event date first.", "error");
           return;
         }
         try {
@@ -234,12 +322,13 @@ async function renderUserDashboard() {
             body: { hall_id: hall.id, event_date: d, guest_count: guests },
           });
           await renderUserDashboard();
+          toast("Hall reserved successfully.");
           blk.querySelector(".btn-book").textContent = "Booked!";
           setTimeout(() => {
             blk.querySelector(".btn-book").textContent = "Reserve this hall";
           }, 2200);
         } catch (e) {
-          alert(e.message);
+          toast(e.message, "error");
         }
       });
     });
@@ -254,8 +343,14 @@ async function renderAdmin() {
     const activeSet = new Set(data.recentlyActiveUserIds || []);
 
     root.innerHTML = `
+      <div class="stat-grid">
+        <div class="stat-card"><div class="value">${data.stats.userCount}</div><div class="label">Guests</div></div>
+        <div class="stat-card"><div class="value">${data.stats.bookingCount}</div><div class="label">Bookings</div></div>
+        <div class="stat-card"><div class="value">${data.stats.staffCount}</div><div class="label">Staff</div></div>
+        <div class="stat-card"><div class="value">${data.stats.recentlyActiveCount}</div><div class="label">Active now</div></div>
+      </div>
       <p class="muted-small" style="margin-bottom:1rem">
-        Showing ${data.stats.recentlyActiveCount} guests/staff active in the last ~15 minutes (by site usage).
+        “Active now” = signed in within the last ~15 minutes.
       </p>
       <div class="split split-2">
         <div class="panel" style="max-width:none">
@@ -455,7 +550,7 @@ async function renderAdmin() {
           });
           await renderAdmin();
         } catch (e) {
-          alert(e.message);
+          toast(e.message, "error");
         }
       });
     });
@@ -485,6 +580,13 @@ async function bootstrap() {
   $("#btn-register-nav")?.addEventListener("click", () => navigate("register"));
   $("#btn-login-nav")?.addEventListener("click", () => navigate("login"));
   $("#btn-admin-login-nav")?.addEventListener("click", () => navigate("admin-login"));
+
+  $("#nav-toggle")?.addEventListener("click", () => {
+    const menu = $("#nav-menu");
+    const toggle = $("#nav-toggle");
+    const open = menu?.classList.toggle("open");
+    toggle?.setAttribute("aria-expanded", open ? "true" : "false");
+  });
 
   $("#form-register").addEventListener("submit", async (e) => {
     e.preventDefault();

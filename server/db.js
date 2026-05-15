@@ -83,9 +83,11 @@ function seedIfEmpty(db) {
     .get();
   if (count > 0) return;
 
-  const adminEmail = "avinandanp138@gmail.com";
-  const adminPhone = "9064355617";
-  const adminPass = "Avi#1427";
+  const adminEmail =
+    process.env.ADMIN_EMAIL || "admin@elysiangrand.local";
+  const adminPhone = process.env.ADMIN_PHONE || "9876543210";
+  const adminPass =
+    process.env.ADMIN_PASSWORD || "ChangeMe!2026";
   const hash = bcrypt.hashSync(adminPass, 12);
 
   const insUser = db.prepare(
