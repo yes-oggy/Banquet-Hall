@@ -1,0 +1,16 @@
+# Render Web Service (NOT Static Site). Connect repo → Render auto-detects this file.
+services:
+  - type: web
+    name: banquet-hall
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true

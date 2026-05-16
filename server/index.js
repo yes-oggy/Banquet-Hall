@@ -319,6 +319,10 @@ app.post("/api/me/change-password", authAndTouch, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true });
+});
+
 app.get("/api/promotions", (req, res) => {
   const db = getDb();
   const rows = db
@@ -704,7 +708,14 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "public", "index.html"));
 });
 
+try {
+  getDb();
+  console.log("Database ready.");
+} catch (err) {
+  console.error("Database failed to start:", err);
+  process.exit(1);
+}
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Banquet Hall server → http://localhost:${PORT}`);
-  console.log(`On your LAN, others can try http://<this-PC-IPv4>:${PORT} (firewall must allow it).`);
 });

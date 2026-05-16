@@ -5,11 +5,12 @@
   "description": "Minimal banquet hall booking site with Express + SQLite",
   "main": "server/index.js",
   "scripts": {
+    "build": "node -e \"require('better-sqlite3'); console.log('better-sqlite3 ok')\"",
     "start": "node server/index.js",
     "dev": "node server/index.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": "20.18.0"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
