@@ -66,6 +66,109 @@ let state = {
   user: null,
 };
 
+let adminRefreshTimer = null;
+let guestHeartbeatTimer = null;
+
+function formatWhen(iso) {
+  if (!iso) return "—";
+  const raw = String(iso).trim();
+  const normalized = raw.includes("T") ? raw : `${raw.replace(" ", "T")}Z`;
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return raw;
+  return d.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+}
+
+function stopAdminRefresh() {
+  if (adminRefreshTimer) {
+    clearInterval(adminRefreshTimer);
+    adminRefreshTimer = null;
+  }
+}
+
+function startAdminRefresh() {
+  stopAdminRefresh();
+  adminRefreshTimer = setInterval(() => {
+    const h = (location.hash || "#home").slice(1);
+    if (h !== "admin" || !["admin", "coadmin"].includes(state.user?.role)) return;
+    refreshAdminLive().catch(() => {});
+  }, 20000);
+}
+
+function stopGuestHeartbeat() {
+  if (guestHeartbeatTimer) {
+    clearInterval(guestHeartbeatTimer);
+    guestHeartbeatTimer = null;
+  }
+}
+
+function startGuestHeartbeat() {
+  stopGuestHeartbeat();
+  if (state.user?.role !== "user") return;
+  guestHeartbeatTimer = setInterval(() => {
+    if (state.user?.role === "user") api("/api/me").catch(() => {});
+  }, 45000);
+}
+
+function guestUsersTableHtml(guests) {
+  if (!guests.length) {
+    return `<p class="muted-small">No registered guests yet. Everyone who signs up is saved here permanently.</p>`;
+  }
+  return `
+    <div class="table-wrap table-guests">
+      <table>
+        <thead><tr>
+          <th>Status</th><th>Name</th><th>Email</th><th>Phone</th>
+          <th>Registered</th><th>Last login</th><th>Last active</th><th>Bookings</th>
+        </tr></thead>
+        <tbody>
+          ${guests
+            .map(
+              (u) => `
+            <tr>
+              <td>${
+                u.is_online
+                  ? '<span class="pill pill-online">● Online</span>'
+                  : '<span class="pill pill-offline">Offline</span>'
+              }</td>
+              <td>${escapeHtml(u.name)}</td>
+              <td>${escapeHtml(u.email)}</td>
+              <td>${escapeHtml(u.phone)}</td>
+              <td>${formatWhen(u.created_at)}</td>
+              <td>${formatWhen(u.last_login_at)}</td>
+              <td>${formatWhen(u.last_seen_at)}</td>
+              <td>${u.booking_count ?? 0}</td>
+            </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function adminStatsHtml(data) {
+  return `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="value">${data.stats.userCount}</div><div class="label">Registered guests</div></div>
+      <div class="stat-card"><div class="value">${data.stats.recentlyActiveCount}</div><div class="label">Online now</div></div>
+      <div class="stat-card"><div class="value">${data.stats.bookingCount}</div><div class="label">Bookings</div></div>
+      <div class="stat-card"><div class="value">${data.stats.staffCount}</div><div class="label">Staff</div></div>
+    </div>`;
+}
+
+async function refreshAdminLive() {
+  const data = await api("/api/admin/overview");
+  const guests = data.guestUsers || [];
+  const statsEl = $("#admin-live-stats");
+  const guestsEl = $("#admin-guest-registry");
+  const noteEl = $("#admin-live-note");
+  if (statsEl) statsEl.innerHTML = adminStatsHtml(data);
+  if (guestsEl) guestsEl.innerHTML = guestUsersTableHtml(guests);
+  if (noteEl) {
+    const win = data.stats.onlineWindowMinutes || 15;
+    noteEl.textContent = `Live · refreshed ${new Date().toLocaleTimeString("en-IN")} · “Online” = active on any device in the last ${win} minutes`;
+  }
+}
+
 async function refreshMe() {
   const prevId = state.user?.id;
   const prevRole = state.user?.role;
@@ -91,8 +194,10 @@ async function refreshMe() {
     $("#btn-login-nav")?.classList.toggle("hidden", !!user);
     $("#btn-register-nav")?.classList.toggle("hidden", !!user);
     $("#btn-admin-login-nav")?.classList.toggle("hidden", !!user);
+    startGuestHeartbeat();
     return user;
   } catch {
+    stopGuestHeartbeat();
     if (state.user) delete $("#halls-grid")?.dataset.loaded;
     state.user = null;
     $("#nav-auth")?.classList.remove("hidden");
@@ -130,7 +235,12 @@ async function routeFromHash() {
   showPage(h);
   if (h === "home") await renderHome();
   if (h === "user") await loadUserPage();
-  if (h === "admin") await renderAdmin();
+  if (h === "admin") {
+    await renderAdmin();
+    startAdminRefresh();
+  } else {
+    stopAdminRefresh();
+  }
 }
 
 async function loadUserPage() {
@@ -340,43 +450,17 @@ async function renderAdmin() {
   root.innerHTML = `<p class="muted-small">Loading admin…</p>`;
   try {
     const data = await api("/api/admin/overview");
-    const activeSet = new Set(data.recentlyActiveUserIds || []);
+    const guests = data.guestUsers || [];
+    const staff = data.users.filter((u) => u.role !== "user");
 
     root.innerHTML = `
-      <div class="stat-grid">
-        <div class="stat-card"><div class="value">${data.stats.userCount}</div><div class="label">Guests</div></div>
-        <div class="stat-card"><div class="value">${data.stats.bookingCount}</div><div class="label">Bookings</div></div>
-        <div class="stat-card"><div class="value">${data.stats.staffCount}</div><div class="label">Staff</div></div>
-        <div class="stat-card"><div class="value">${data.stats.recentlyActiveCount}</div><div class="label">Active now</div></div>
-      </div>
-      <p class="muted-small" style="margin-bottom:1rem">
-        “Active now” = signed in within the last ~15 minutes.
-      </p>
+      <div id="admin-live-stats">${adminStatsHtml(data)}</div>
+      <p id="admin-live-note" class="muted-small live-note" style="margin-bottom:1rem"></p>
       <div class="split split-2">
         <div class="panel" style="max-width:none">
-          <h3 class="section-title" style="margin-top:0">Users</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th></th><th>Name</th><th>Role</th><th>Email</th><th>Phone</th><th>Bookings*</th></tr></thead>
-              <tbody>
-                ${data.users
-                  .map((u) => {
-                    const on = activeSet.has(u.id);
-                    return `
-                  <tr>
-                    <td><span class="avatar-dot" style="background:${on ? "#22c55e" : "#d6d3d1"}"></span></td>
-                    <td>${escapeHtml(u.name)}</td>
-                    <td><span class="pill ${u.role === "user" ? "pill-user" : "pill-admin"}">${u.role}</span></td>
-                    <td>${escapeHtml(u.email)}</td>
-                    <td>${escapeHtml(u.phone)}</td>
-                    <td>${data.bookings.filter((b) => b.user_id === u.id).length}</td>
-                  </tr>`;
-                  })
-                  .join("")}
-              </tbody>
-            </table>
-          </div>
-          <p class="muted-small">*booking count snapshot for this dashboard load.</p>
+          <h3 class="section-title" style="margin-top:0">Registered guests (permanent)</h3>
+          <div id="admin-guest-registry">${guestUsersTableHtml(guests)}</div>
+          <p class="muted-small">All registrations are kept permanently. Table refreshes every 20 seconds while you are on this page.</p>
         </div>
         <div>
           <div class="panel" style="max-width:none;margin-bottom:1rem">
@@ -468,6 +552,8 @@ async function renderAdmin() {
           </tbody>
         </table>
       </div>`;
+
+    refreshAdminLive().catch(() => {});
 
     $("#disc-type").addEventListener("change", () => {
       const t = $("#disc-type").value;

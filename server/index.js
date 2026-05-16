@@ -59,11 +59,25 @@ function isFutureOrToday(isoDate) {
   return /^\d{4}-\d{2}-\d{2}$/.test(isoDate) && isoDate >= todayISO();
 }
 
+const ONLINE_WINDOW_MINUTES = 15;
+
 function touchLastSeen(userId) {
   const db = getDb();
   db.prepare(
     `UPDATE users SET last_seen_at = datetime('now') WHERE id = ?`
   ).run(userId);
+}
+
+function onlineUserIds(db) {
+  return new Set(
+    db
+      .prepare(
+        `SELECT id FROM users WHERE last_seen_at IS NOT NULL
+         AND datetime(last_seen_at) > datetime('now', ?)`
+      )
+      .all(`-${ONLINE_WINDOW_MINUTES} minutes`)
+      .map((r) => r.id)
+  );
 }
 
 function authAndTouch(req, res, next) {
@@ -123,8 +137,8 @@ app.post("/api/auth/register", (req, res) => {
   const hash = bcrypt.hashSync(password, 12);
   const info = db
     .prepare(
-      `INSERT INTO users (name, email, phone, password_hash, role)
-       VALUES (?, ?, ?, ?, 'user')`
+      `INSERT INTO users (name, email, phone, password_hash, role, last_login_at, last_seen_at)
+       VALUES (?, ?, ?, ?, 'user', datetime('now'), datetime('now'))`
     )
     .run(n, e, ph, hash);
 
@@ -155,9 +169,9 @@ app.post("/api/auth/login", (req, res) => {
     return res.status(401).json({ error: "Invalid email or password." });
   }
 
-  db.prepare(`UPDATE users SET last_login_at = datetime('now') WHERE id = ?`).run(
-    row.id
-  );
+  db.prepare(
+    `UPDATE users SET last_login_at = datetime('now'), last_seen_at = datetime('now') WHERE id = ?`
+  ).run(row.id);
 
   const user = {
     id: row.id,
@@ -519,8 +533,10 @@ app.get(
     const db = getDb();
     const users = db
       .prepare(
-        `SELECT id, name, email, phone, role, created_at, last_login_at, last_seen_at
-         FROM users ORDER BY id DESC`
+        `SELECT u.id, u.name, u.email, u.phone, u.role, u.created_at, u.last_login_at, u.last_seen_at,
+                (SELECT COUNT(*) FROM bookings b WHERE b.user_id = u.id) AS booking_count
+         FROM users u
+         ORDER BY u.created_at DESC`
       )
       .all();
     const bookings = db
@@ -535,24 +551,27 @@ app.get(
     const discounts = db.prepare(`SELECT * FROM discounts ORDER BY id`).all();
     const halls = db.prepare(`SELECT * FROM halls ORDER BY id`).all();
 
-    const activeRows = db
-      .prepare(
-        `SELECT id FROM users WHERE last_seen_at IS NOT NULL
-         AND datetime(last_seen_at) > datetime('now', '-15 minutes')`
-      )
-      .all();
-    const activeIds = new Set(activeRows.map((r) => r.id));
+    const activeIds = onlineUserIds(db);
+    const guestUsers = users
+      .filter((u) => u.role === "user")
+      .map((u) => ({
+        ...u,
+        is_online: activeIds.has(u.id),
+        booking_count: Number(u.booking_count) || 0,
+      }));
 
     res.json({
       users,
+      guestUsers,
       bookings,
       discounts,
       halls,
       stats: {
-        userCount: users.filter((u) => u.role === "user").length,
+        userCount: guestUsers.length,
         staffCount: users.filter((u) => u.role !== "user").length,
         bookingCount: bookings.length,
-        recentlyActiveCount: activeIds.size,
+        recentlyActiveCount: guestUsers.filter((u) => u.is_online).length,
+        onlineWindowMinutes: ONLINE_WINDOW_MINUTES,
       },
       recentlyActiveUserIds: [...activeIds],
     });
